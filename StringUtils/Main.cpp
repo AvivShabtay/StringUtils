@@ -18,15 +18,19 @@ int main()
 
     std::string nameUpper("AVIV");
     std::cout << toLower(nameUpper) << std::endl;
+    std::cout << toLower("AVIV"sv) << std::endl;
     std::wstring nameUpperWide(L"AVIV");
     std::wcout << toLower(nameUpperWide) << std::endl;
+    std::wcout << toLower(L"AVIV"sv) << std::endl;
     std::cout << toLower("AVIV") << std::endl;
     std::wcout << toLower(L"AVIV") << std::endl;
 
     std::string nameLower("aviv");
     std::cout << toUpper(nameLower) << std::endl;
+    std::cout << toUpper("aviv"sv) << std::endl;
     std::wstring nameLowerWide(L"aviv");
     std::wcout << toUpper(nameLowerWide) << std::endl;
+    std::wcout << toUpper(L"aviv"sv) << std::endl;
     std::cout << toUpper("aviv") << std::endl;
     std::wcout << toUpper(L"aviv") << std::endl;
 

@@ -144,33 +144,38 @@ struct ToLower : StringStrategySelector
         constexpr Strategy strategy = choice<StringType>;
         using UnrefStringType = std::remove_cvref_t<StringType>;
 
-        if constexpr (detail::isOneOf(strategy, 
-            Strategy::CharArray, 
+        const auto toLower = [&]<typename ResultType>(ResultType && result) {
+            std::ranges::transform(std::forward<StringType>(str), std::forward<ResultType>(result),
+                [](const auto c) {
+                    return std::tolower(c);
+            });
+        };
+
+        if constexpr (detail::isOneOf(strategy,
+            Strategy::CharArray,
             Strategy::WideCharArray))
         {
             using ArrayDataType = std::remove_extent_t<UnrefStringType>;
             std::basic_string<ArrayDataType> result;
 
-            std::ranges::transform(std::forward<StringType>(str), std::back_inserter(result), 
-                [](const ArrayDataType c) {
-					return std::tolower(c);
-            });
+            toLower(std::back_inserter(result));
+            return result;
+        }
+        else if constexpr (detail::isOneOf(strategy,
+            Strategy::CharStringView,
+            Strategy::WideCharStringView))
+        {
+            using StringViewValueType = typename UnrefStringType::value_type;
+            std::basic_string<StringViewValueType> result;
 
+            toLower(std::back_inserter(result));
             return result;
         }
         else if constexpr (detail::isOneOf(strategy,
             Strategy::CharBasicString,
-            Strategy::CharStringView, 
-            Strategy::WideCharBasicString,
-            Strategy::WideCharStringView))
+            Strategy::WideCharBasicString))
         {
-            using StringValueType = typename UnrefStringType::value_type;
-
-            std::ranges::transform(std::forward<StringType>(str), std::forward<StringType>(str).begin(),
-                [](const StringValueType c) {
-					return std::tolower(c);
-            });
-
+            toLower(std::forward<StringType>(str).begin());
             return str;
         }
         else
@@ -191,6 +196,13 @@ struct ToUpper : StringStrategySelector
         constexpr Strategy strategy = choice<StringType>;
         using UnrefStringType = std::remove_cvref_t<StringType>;
 
+        const auto toUpper = [&]<typename ResultType>(ResultType&& result) {
+            std::ranges::transform(std::forward<StringType>(str), std::forward<ResultType>(result),
+                [](const auto c) {
+                    return std::toupper(c);
+            });
+        };
+
         if constexpr (detail::isOneOf(strategy,
             Strategy::CharArray,
             Strategy::WideCharArray))
@@ -198,26 +210,24 @@ struct ToUpper : StringStrategySelector
             using ArrayDataType = std::remove_extent_t<UnrefStringType>;
             std::basic_string<ArrayDataType> result;
 
-            std::ranges::transform(std::forward<StringType>(str), std::back_inserter(result),
-                [](const ArrayDataType c) {
-                    return std::toupper(c);
-                });
+            toUpper(std::back_inserter(result));
+            return result;
+        }
+        else if constexpr (detail::isOneOf(strategy,
+            Strategy::CharStringView,
+            Strategy::WideCharStringView))
+        {
+            using StringViewValueType = typename UnrefStringType::value_type;
+            std::basic_string<StringViewValueType> result;
 
+            toUpper(std::back_inserter(result));
             return result;
         }
         else if constexpr (detail::isOneOf(strategy,
             Strategy::CharBasicString,
-            Strategy::CharStringView,
-            Strategy::WideCharBasicString,
-            Strategy::WideCharStringView))
+            Strategy::WideCharBasicString))
         {
-            using StringValueType = typename UnrefStringType::value_type;
-
-            std::ranges::transform(std::forward<StringType>(str), std::forward<StringType>(str).begin(),
-                [](const StringValueType c) {
-                    return std::toupper(c);
-                });
-
+            toUpper(std::forward<StringType>(str).begin());
             return str;
         }
         else
