@@ -3,6 +3,8 @@
 #include "StringConversion.h"
 
 #include <type_traits>
+#include <ranges>
+#include <algorithm>
 
 namespace stringUtils {
 
@@ -132,5 +134,99 @@ struct ToMultiByte : StringStrategySelector
 };
 
 inline constexpr ToMultiByte toMultiByte;
+
+struct ToLower : StringStrategySelector
+{
+    template <typename StringType>
+        requires (choice<StringType> != Strategy::None && std::is_reference_v<StringType&>)
+    [[nodiscard]] auto operator()(StringType&& str) const
+    {
+        constexpr Strategy strategy = choice<StringType>;
+        using UnrefStringType = std::remove_cvref_t<StringType>;
+
+        if constexpr (detail::isOneOf(strategy, 
+            Strategy::CharArray, 
+            Strategy::WideCharArray))
+        {
+            using ArrayDataType = std::remove_extent_t<UnrefStringType>;
+            std::basic_string<ArrayDataType> result;
+
+            std::ranges::transform(std::forward<StringType>(str), std::back_inserter(result), 
+                [](const ArrayDataType c) {
+					return std::tolower(c);
+            });
+
+            return result;
+        }
+        else if constexpr (detail::isOneOf(strategy,
+            Strategy::CharBasicString,
+            Strategy::CharStringView, 
+            Strategy::WideCharBasicString,
+            Strategy::WideCharStringView))
+        {
+            using StringValueType = typename UnrefStringType::value_type;
+
+            std::ranges::transform(std::forward<StringType>(str), std::forward<StringType>(str).begin(),
+                [](const StringValueType c) {
+					return std::tolower(c);
+            });
+
+            return str;
+        }
+        else
+        {
+            static_assert(std::_Always_false<StringType>, "Shouldn't reach here");
+        }
+    }
+};
+
+inline constexpr ToLower toLower;
+
+struct ToUpper : StringStrategySelector
+{
+    template <typename StringType>
+        requires (choice<StringType> != Strategy::None && std::is_reference_v<StringType&>)
+    [[nodiscard]] auto operator()(StringType&& str) const
+    {
+        constexpr Strategy strategy = choice<StringType>;
+        using UnrefStringType = std::remove_cvref_t<StringType>;
+
+        if constexpr (detail::isOneOf(strategy,
+            Strategy::CharArray,
+            Strategy::WideCharArray))
+        {
+            using ArrayDataType = std::remove_extent_t<UnrefStringType>;
+            std::basic_string<ArrayDataType> result;
+
+            std::ranges::transform(std::forward<StringType>(str), std::back_inserter(result),
+                [](const ArrayDataType c) {
+                    return std::toupper(c);
+                });
+
+            return result;
+        }
+        else if constexpr (detail::isOneOf(strategy,
+            Strategy::CharBasicString,
+            Strategy::CharStringView,
+            Strategy::WideCharBasicString,
+            Strategy::WideCharStringView))
+        {
+            using StringValueType = typename UnrefStringType::value_type;
+
+            std::ranges::transform(std::forward<StringType>(str), std::forward<StringType>(str).begin(),
+                [](const StringValueType c) {
+                    return std::toupper(c);
+                });
+
+            return str;
+        }
+        else
+        {
+            static_assert(std::_Always_false<StringType>, "Shouldn't reach here");
+        }
+    }
+};
+
+inline constexpr ToUpper toUpper;
 
 } // namespace stringUtils
