@@ -37,6 +37,19 @@ constexpr bool isOneOf(EnumType value, Enums... valuesToCompare)
     return ((value == valuesToCompare) || ...);
 }
 
+template <typename T>
+using BaseTypeT = std::remove_cv_t<std::remove_pointer_t<std::remove_reference_t<std::remove_extent_t<T>>>>;
+
+template <typename T>
+concept BasicString = std::disjunction_v<
+    std::is_same<std::remove_cvref_t<T>, std::basic_string<char>>,
+    std::is_same<std::remove_cvref_t<T>, std::basic_string<wchar_t>>>;
+
+template <typename T>
+concept BasicStringView = std::disjunction_v<
+    std::is_same<std::remove_cvref_t<T>, std::basic_string_view<char>>,
+    std::is_same<std::remove_cvref_t<T>, std::basic_string_view<wchar_t>>>;
+
 } // namespace detail
 
 class StringStrategySelector
@@ -50,7 +63,9 @@ protected:
         CharStringView,
         WideCharStringView,
         CharArray,
-        WideCharArray
+        WideCharArray,
+        CharPointer,
+        WideCharPointer,
     };
 
     template <typename Type>
@@ -69,6 +84,12 @@ protected:
         }
         else if constexpr (std::same_as<UnrefType, std::basic_string_view<wchar_t>>) {
             return Strategy::WideCharStringView;
+        }
+        else if constexpr (std::is_same_v<std::remove_reference_t<Type>, const char*>) {
+            return Strategy::CharPointer;
+        }
+        else if constexpr (std::is_same_v<std::remove_reference_t<Type>, const wchar_t*>) {
+            return Strategy::WideCharPointer;
         }
         else if constexpr (detail::IsArrayOf<UnrefType, char>)
         {
@@ -238,5 +259,79 @@ struct ToUpper : StringStrategySelector
 };
 
 inline constexpr ToUpper toUpper;
+
+struct StringLength : StringStrategySelector
+{
+    template <typename InputType>
+        requires (choice<InputType> != Strategy::None)
+    [[nodiscard]] constexpr size_t operator()(const InputType& input) const
+    {
+        constexpr Strategy strategy = choice<InputType>;
+
+        if constexpr (detail::isOneOf(strategy,
+            Strategy::CharPointer))
+        {
+            return strlen(input);
+        }
+        else if constexpr (detail::isOneOf(strategy,
+            Strategy::WideCharPointer))
+        {
+            return wcslen(input);
+        }
+        else if constexpr (detail::isOneOf(strategy,
+            Strategy::CharArray,
+            Strategy::WideCharArray))
+        {
+            return std::extent_v<InputType> - 1; // Exclude null terminator
+        }
+        else if constexpr (detail::isOneOf(strategy,
+            Strategy::CharBasicString,
+            Strategy::WideCharBasicString,
+            Strategy::CharStringView,
+            Strategy::WideCharStringView))
+        {
+            return input.size();
+        }
+        else
+        {
+            static_assert(std::_Always_false<InputType>, "Shouldn't reach here");
+        }
+    }
+};
+
+inline constexpr StringLength stringLength;
+
+struct StringSize : StringStrategySelector
+{
+    template <typename InputType>
+        requires (choice<InputType> != Strategy::None)
+    [[nodiscard]] constexpr size_t operator()(const InputType& input) const
+    {
+        constexpr Strategy strategy = choice<InputType>;
+
+        if constexpr (detail::isOneOf(strategy,
+            Strategy::CharPointer,
+            Strategy::WideCharPointer,
+            Strategy::CharArray,
+            Strategy::WideCharArray))
+        {
+            return stringLength(input) * sizeof(detail::BaseTypeT<InputType>);;
+        }
+        else if constexpr (detail::isOneOf(strategy,
+            Strategy::CharBasicString,
+            Strategy::WideCharBasicString,
+            Strategy::CharStringView,
+            Strategy::WideCharStringView))
+        {
+            return input.size() * sizeof(typename InputType::value_type);
+        }
+        else
+        {
+            static_assert(std::_Always_false<InputType>, "Shouldn't reach here");
+        }
+    }
+};
+
+inline constexpr StringSize stringSize;
 
 } // namespace stringUtils
